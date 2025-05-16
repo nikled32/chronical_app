@@ -13,7 +13,7 @@ def generate_random_date_of_birth():
 
 # Функция для добавления пациентов
 def add_patients():
-    conn = sqlite3.connect("chronic_diseases.db")
+    conn = sqlite3.connect("../chronic_diseases.db")
     cursor = conn.cursor()
 
     # Список тестовых данных

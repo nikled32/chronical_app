@@ -1,7 +1,7 @@
 import sqlite3
 
 # Подключение к базе данных
-conn = sqlite3.connect("chronic_diseases.db")
+conn = sqlite3.connect("../chronic_diseases.db")
 cursor = conn.cursor()
 
 # Добавление нового столбца "last_accessed" в таблицу "patients"
