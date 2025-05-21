@@ -95,5 +95,13 @@ def generate_test_data(patient_id, days=30):
 if __name__ == "__main__":
     init_patient_tables()
     # Предполагаем, что тестовый пациент имеет id=1
-    generate_test_data(patient_id=1)
+    generate_test_data(patient_id=2)
+    generate_test_data(patient_id=3)
+    generate_test_data(patient_id=4)
+    generate_test_data(patient_id=5)
+    generate_test_data(patient_id=6)
+    generate_test_data(patient_id=7)
+    generate_test_data(patient_id=8)
+    generate_test_data(patient_id=9)
+    generate_test_data(patient_id=10)
     print("Тестовые данные пациентов успешно созданы!")

@@ -49,14 +49,14 @@ def get_patient_data(patient_id):
 
 
 # Функция для генерации случайных данных для графиков
-def generate_random_data():
-    """Генерирует случайные данные для графиков."""
-    data = {
-        "heart_rate": [random.randint(60, 100) for _ in range(30)],  # ЧСС
-        "blood_pressure": [(random.randint(110, 130), random.randint(70, 90)) for _ in range(30)],  # Артериальное давление
-        "blood_sugar": [random.randint(70, 120) for _ in range(30)],  # Уровень сахара в крови
-    }
-    return data
+# def generate_random_data():
+#     """Генерирует случайные данные для графиков."""
+#     data = {
+#         "heart_rate": [random.randint(60, 100) for _ in range(30)],  # ЧСС
+#         "blood_pressure": [(random.randint(110, 130), random.randint(70, 90)) for _ in range(30)],  # Артериальное давление
+#         "blood_sugar": [random.randint(70, 120) for _ in range(30)],  # Уровень сахара в крови
+#     }
+#     return data
 
 
 # Функция для получения списка всех пациентов
@@ -246,6 +246,48 @@ def doctor_page(page: ft.Page):
     load_all_patients()
 
 
+def get_heart_rate_data(patient_id):
+    conn = sqlite3.connect("chronic_diseases.db")
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT measurement_time, rate
+        FROM heart_rates
+        WHERE patient_id = ?
+        ORDER BY measurement_time
+    """, (patient_id,))
+    data = cursor.fetchall()
+    conn.close()
+    return [(row[0], row[1]) for row in data]
+
+
+def get_blood_pressure_data(patient_id):
+    conn = sqlite3.connect("chronic_diseases.db")
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT measurement_time, systolic, diastolic
+        FROM blood_pressure
+        WHERE patient_id = ?
+        ORDER BY measurement_time
+    """, (patient_id,))
+    data = cursor.fetchall()
+    conn.close()
+    return [(row[0], row[1], row[2]) for row in data]
+
+
+def get_blood_sugar_data(patient_id):
+    conn = sqlite3.connect("chronic_diseases.db")
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT measurement_time, level
+        FROM blood_sugar
+        WHERE patient_id = ?
+        ORDER BY measurement_time
+    """, (patient_id,))
+    data = cursor.fetchall()
+    conn.close()
+    return [(row[0], row[1]) for row in data]
+
+
 # Функция для создания страницы пациента
 def doctor_patient_page(page: ft.Page, patient_id: int):
     # Обновляем поле last_accessed текущей датой и временем
@@ -271,8 +313,21 @@ def doctor_patient_page(page: ft.Page, patient_id: int):
     name, date_of_birth, smoking, alcohol, medical_history, contact_info = patient_data
     age = calculate_age(date_of_birth)
 
-    # Генерация случайных данных для графиков
-    data = generate_random_data()
+    # --- Загрузка реальных данных из БД ---
+    heart_rate_raw = get_heart_rate_data(patient_id)
+    blood_pressure_raw = get_blood_pressure_data(patient_id)
+    blood_sugar_raw = get_blood_sugar_data(patient_id)
+
+    # --- Подготовка данных для графиков ---
+    heart_rate_values = [rate for _, rate in heart_rate_raw]
+    blood_pressure_values = [(systolic, diastolic) for _, systolic, diastolic in blood_pressure_raw]
+    blood_sugar_values = [level for _, level in blood_sugar_raw]
+
+    data = {
+        "heart_rate": heart_rate_values,
+        "blood_pressure": blood_pressure_values,
+        "blood_sugar": blood_sugar_values,
+    }
 
     # Создаем элементы диалогов заранее
     new_note_field = ft.TextField(
