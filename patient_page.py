@@ -116,17 +116,12 @@ def patient_page(page: ft.Page):
         width=400
     )
 
-    contact_dialog = ft.AlertDialog(
-        modal=True,
-        title=ft.Text("Контактные данные"),
-        content=ft.Column([
-            ft.Text(f"Пациент: {name}", size=18),
-            ft.Divider(),
-            ft.Text(f"Email: {contact_info}"),
-            ft.Text("Адрес: г. Москва, ул. Примерная, 1")
-        ], tight=True),
-        actions=[ft.TextButton("Закрыть")]
-    )
+    data_fields = [
+        ft.TextField(label="Систолическое давление", hint_text="Напр. 120", width=200),
+        ft.TextField(label="Диастолическое давление", hint_text="Напр. 80", width=200),
+        ft.TextField(label="Пульс", hint_text="Напр. 70", width=200),
+        ft.TextField(label="Сахар в крови", hint_text="Напр. 3.3", width=200)
+    ]
 
     medical_note_dialog = ft.AlertDialog(
         modal=True,
@@ -138,18 +133,22 @@ def patient_page(page: ft.Page):
         ]
     )
 
+    data_dialog = ft.AlertDialog(
+        modal=True,
+        title=ft.Text("Добавить показатели"),
+        content=ft.Column(controls=data_fields),
+        actions=[
+            ft.TextButton("Отмена"),
+            ft.TextButton("Сохранить")
+        ]
+    )
+
     # Добавляем диалоги в overlay страницы
-    page.overlay.extend([contact_dialog, medical_note_dialog])
+    page.overlay.extend([medical_note_dialog, data_dialog])
 
     # Функции обработчиков
     def close_dialog(e):
         page.dialog.open = False
-        page.update()
-
-    def open_contact_dialog(e):
-        contact_dialog.actions[0].on_click = close_dialog
-        page.dialog = contact_dialog
-        contact_dialog.open = True
         page.update()
 
     def open_medical_note_dialog(e):
@@ -159,6 +158,44 @@ def patient_page(page: ft.Page):
         page.dialog = medical_note_dialog
         medical_note_dialog.open = True
         page.update()
+
+    def open_data_dialog(e):
+        new_note_field.value = ""
+        data_dialog.actions[0].on_click = close_dialog
+        data_dialog.actions[1].on_click = save_data
+        page.dialog = data_dialog
+        data_dialog.open = True
+        page.update()
+
+    def save_data(e):
+        try:
+            rate = int(data_fields[0].value)
+            systolic = int(data_fields[1].value)
+            diastolic = int(data_fields[2].value)
+            sugar = float(data_fields[3].value)
+        except ValueError:
+            page.snack_bar = ft.SnackBar(ft.Text("Пожалуйста, введите корректные значения."), open=True)
+            page.update()
+            return
+
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        conn = sqlite3.connect("chronic_diseases.db")
+        cursor = conn.cursor()
+        cursor.execute("INSERT INTO heart_rates (patient_id, rate, measurement_time) VALUES (?, ?, ?)",
+                           (patient_id, rate, now))
+        cursor.execute(
+                "INSERT INTO blood_pressure (patient_id, systolic, diastolic, measurement_time) VALUES (?, ?, ?, ?)",
+                (patient_id, systolic, diastolic, now))
+        cursor.execute("INSERT INTO blood_sugar (patient_id, level, measurement_time) VALUES (?, ?, ?)",
+                           (patient_id, sugar, now))
+        conn.commit()
+        conn.close()
+
+        data_dialog.open = False
+        page.update()
+
+        # Обновляем страницу для отображения изменений
+        patient_page(page)
 
     def go_back(e):
         page.go("/")
@@ -312,13 +349,20 @@ def patient_page(page: ft.Page):
     action_buttons = ft.Row(
         controls=[
             ft.ElevatedButton(
-                text="Назад",
+                text="Назад к списку",
                 on_click=go_back,
                 width=200,
                 height=40
             ),
             ft.ElevatedButton(
-                text="Добавить запись как пациент",
+                text="Добавить данные",
+                on_click=open_data_dialog,
+                width=200,
+                height=40,
+                icon=ft.icons.ADD_CIRCLE_OUTLINE
+            ),
+            ft.ElevatedButton(
+                text="Добавить запись",
                 on_click=open_medical_note_dialog,
                 width=200,
                 height=40,

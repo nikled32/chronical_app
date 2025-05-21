@@ -330,6 +330,14 @@ def doctor_patient_page(page: ft.Page, patient_id: int):
     }
 
     # Создаем элементы диалогов заранее
+    # Создаем элементы диалогов заранее
+    data_fields = [
+        ft.TextField(label="Систолическое давление", hint_text="Напр. 120", width=200),
+        ft.TextField(label="Диастолическое давление", hint_text="Напр. 80", width=200),
+        ft.TextField(label="Пульс", hint_text="Напр. 70", width=200),
+        ft.TextField(label="Сахар в крови", hint_text="Напр. 3.3", width=200)
+    ]
+
     new_note_field = ft.TextField(
         multiline=True,
         min_lines=3,
@@ -359,8 +367,18 @@ def doctor_patient_page(page: ft.Page, patient_id: int):
         ]
     )
 
+    data_dialog = ft.AlertDialog(
+        modal=True,
+        title=ft.Text("Добавить показатели"),
+        content=ft.Column(controls=data_fields),
+        actions=[
+            ft.TextButton("Отмена"),
+            ft.TextButton("Сохранить")
+        ]
+    )
+
     # Добавляем диалоги в overlay страницы
-    page.overlay.extend([contact_dialog, medical_note_dialog])
+    page.overlay.extend([contact_dialog, medical_note_dialog, data_dialog])
 
     # Функции обработчиков
     def close_dialog(e):
@@ -381,6 +399,14 @@ def doctor_patient_page(page: ft.Page, patient_id: int):
         medical_note_dialog.open = True
         page.update()
 
+    def open_data_dialog(e):
+        new_note_field.value = ""
+        data_dialog.actions[0].on_click = close_dialog
+        data_dialog.actions[1].on_click = save_data
+        page.dialog = data_dialog
+        data_dialog.open = True
+        page.update()
+
     def save_medical_note(e):
         if new_note_field.value.strip():
             conn = sqlite3.connect("chronic_diseases.db")
@@ -398,6 +424,43 @@ def doctor_patient_page(page: ft.Page, patient_id: int):
 
             # Обновляем страницу для отображения изменений
             doctor_patient_page(page, patient_id)
+
+        # Поля для ввода значений
+
+    rate_field = ft.TextField(label="Частота пульса (уд/мин)", keyboard_type=ft.KeyboardType.NUMBER)
+    systolic_field = ft.TextField(label="Систолическое давление", keyboard_type=ft.KeyboardType.NUMBER)
+    diastolic_field = ft.TextField(label="Диастолическое давление", keyboard_type=ft.KeyboardType.NUMBER)
+    sugar_field = ft.TextField(label="Уровень сахара (ммоль/л)", keyboard_type=ft.KeyboardType.NUMBER)
+
+    def save_data(e):
+        try:
+            rate = int(data_fields[0].value)
+            systolic = int(data_fields[1].value)
+            diastolic = int(data_fields[2].value)
+            sugar = float(data_fields[3].value)
+        except ValueError:
+            page.snack_bar = ft.SnackBar(ft.Text("Пожалуйста, введите корректные значения."), open=True)
+            page.update()
+            return
+
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        conn = sqlite3.connect("chronic_diseases.db")
+        cursor = conn.cursor()
+        cursor.execute("INSERT INTO heart_rates (patient_id, rate, measurement_time) VALUES (?, ?, ?)",
+                       (patient_id, rate, now))
+        cursor.execute(
+            "INSERT INTO blood_pressure (patient_id, systolic, diastolic, measurement_time) VALUES (?, ?, ?, ?)",
+            (patient_id, systolic, diastolic, now))
+        cursor.execute("INSERT INTO blood_sugar (patient_id, level, measurement_time) VALUES (?, ?, ?)",
+                       (patient_id, sugar, now))
+        conn.commit()
+        conn.close()
+
+        data_dialog.open = False
+        page.update()
+
+        # Обновляем страницу для отображения изменений
+        doctor_patient_page(page, patient_id)
 
     def go_back(e):
         page.go("/doctor")
@@ -564,6 +627,13 @@ def doctor_patient_page(page: ft.Page, patient_id: int):
                 icon=ft.icons.CONTACT_PHONE
             ),
             ft.ElevatedButton(
+                text="Добавить данные",
+                on_click=open_data_dialog,
+                width=200,
+                height=40,
+                icon=ft.icons.ADD_CIRCLE_OUTLINE
+            ),
+            ft.ElevatedButton(
                 text="Добавить запись",
                 on_click=open_medical_note_dialog,
                 width=200,
@@ -649,25 +719,4 @@ def doctor_patient_page(page: ft.Page, patient_id: int):
             if new_history
             else [ft.Text("Нет данных", size=16, color=ft.colors.GREY_600)]
         )
-
         page.update()
-
-        # Модифицируем функцию сохранения записи
-
-    def save_medical_note(e):
-        if new_note_field.value.strip():
-            conn = sqlite3.connect("chronic_diseases.db")
-            cursor = conn.cursor()
-            cursor.execute('''
-                    UPDATE patients 
-                    SET medical_history = COALESCE(medical_history || '\n', '') || ?
-                    WHERE id = ?
-                ''', (f"{datetime.now().strftime('%Y-%m-%d')}: {new_note_field.value}", patient_id))
-            conn.commit()
-            conn.close()
-
-            medical_note_dialog.open = False
-            page.update()
-
-            # Обновляем отображение истории
-            update_history_display()
